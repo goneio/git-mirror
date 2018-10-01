@@ -1,0 +1,29 @@
+{
+  "name": "gone/git-mirror",
+  "authors": [
+    {
+      "name": "Matthew Baggett",
+      "email": "matthew@baggett.me"
+    }
+  ],
+  "license": "GPL-3.0-or-later",
+  "repositories": [
+    {
+      "type": "vcs",
+      "url":  "git@github.com:goneio/git-php.git"
+    }
+  ],
+  "require": {
+    "php": "^7.2",
+    "ext-curl": "*",
+    "ext-json": "*",
+    "symfony/yaml": "^4.1",
+    "kint-php/kint": "^2.2",
+    "czproject/git-php": "^3.14"
+  },
+  "autoload": {
+    "psr-4": {
+      "Mirror\\": "src/"
+    }
+  }
+}

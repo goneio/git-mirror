@@ -1,0 +1,11 @@
+version: '2.3'
+
+services:
+  mirror:
+    image: gone/git-mirror
+    build: .
+    volumes:
+      - ./:/app
+      - ./cache:/cache
+      - ./mirrors.yml:/app/mirrors.yml
+      - $HOME/.ssh:/root/.ssh:ro
