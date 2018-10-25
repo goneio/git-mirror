@@ -1,0 +1,13 @@
+schedule:
+  interval: 60s
+
+mirrors:
+  YourProject:
+    remote1: git@github.com:your/project.git
+    remote2: git@bitbucket.com:your/project.git
+    remote3: git@homeserver:your/project.git
+  YourOtherProject:
+    better: git@github.com:your/other-project.git
+    names: git@bitbucket.com:your/other-project.git
+
+
