@@ -8,6 +8,10 @@ use Cz\Git\GitRepository;
 class Mirror{
     /** @var array  */
     private $mirrors = [];
+    /** @var int */
+    private $intervalSeconds = 60;
+    /** @var int */
+    private $lastRunEpoch = 0;
     /** @var GitRepository[] */
     private $repos = [];
 
@@ -27,15 +31,16 @@ class Mirror{
         return "/cache/$name";
     }
 
-    public function parse(array $mirrors) : Mirror
+    public function parse(array $config) : Mirror
     {
-        $this->mirrors = $mirrors['mirrors'];
+        $this->intervalSeconds = $config['schedule']['interval'];
+        $this->mirrors = $config['mirrors'];
         foreach($this->mirrors as $mirror => $mirrorConfig){
             echo "Setting up {$mirror}...\n";
             if(file_exists($this->nameToPath($mirror))){
                 $this->repos[$mirror] = new GitRepository($this->nameToPath($mirror));
             }else{
-                $this->repos[$mirror] = GitRepository::mirror($this->nameToPath($mirror), reset($mirrorConfig));
+                $this->repos[$mirror] = GitRepository::cloneRepository(reset($mirrorConfig), $this->nameToPath($mirror));
             }
             foreach($mirrorConfig as $remoteName => $remotePath) {
                 try {
@@ -52,23 +57,39 @@ class Mirror{
         return $this;
     }
 
-    public function run() : Mirror
+    public function run() : void
+    {
+        while(true){
+            if($this->lastRunEpoch < time() - $this->intervalSeconds){
+                $this->sync();
+                $this->lastRunEpoch = time();
+                $nextRun = date("Y-m-d H:i:s", $this->lastRunEpoch + $this->intervalSeconds);
+                echo "\n\nTime now: " . date("Y-m-d H:i:s") . "... Sleeping until {$nextRun}\n\n";
+            }else{
+                sleep(1);
+            }
+        }
+    }
+
+    public function sync() : Mirror
     {
         foreach($this->mirrors as $mirror => $mirrorConfig) {
-            #$defaultBranch = 'master';
+            $defaultBranch = 'master';
             echo "> Processing {$mirror}\n";
             foreach($mirrorConfig as $remoteName => $remotePath) {
                 echo " > Fetching on {$remoteName}\n";
                 $this->repos[$mirror]->fetch($remoteName);
                 $this->repos[$mirror]->fetch($remoteName, ['--tags']);
-                #echo "  > Checking out {$defaultBranch}\n";
-                #try {
-                #    $this->repos[$mirror]->checkout("{$defaultBranch}");
-                #    $this->repos[$mirror]->pull($remoteName,["{$defaultBranch}", "--allow-unrelated-histories"]);
-                #}catch(GitException $gitException){
-                #    echo "   > Doesn't exist yet.\n";
-                #}
-                #exec("git branch -r | grep -v '\->' | while read remote; do git branch --track \"\${remote#origin/}\" \"\$remote\"; done");
+                $this->repos[$mirror]->checkout($defaultBranch);
+                try {
+                    $this->repos[$mirror]->pull($remoteName, [$defaultBranch]);
+                }catch(GitException $exception){
+                    if(stripos($exception->getMessage(), "Couldn't find remote ref")){
+                        // Do nothing.
+                    }else{
+                        throw $exception;
+                    }
+                }
             }
             foreach($mirrorConfig as $remoteName => $remotePath) {
                 echo " > Pushing on {$remoteName}\n";
